@@ -10,9 +10,12 @@ export function BalanceView({ data, loading }: { data?: Balance; loading: boolea
         {cats.map((c) => (
           <Card key={c} withBorder padding="md">
             <Text size="xs" c="dimmed">{CATEGORY_LABELS[c]}</Text>
-            <Text fw={700} size="xl">{data ? Number(data.balances[c]) : "—"}</Text>
+            <Text fw={700} size="xl">
+              {data ? Number(data.available?.[c] ?? (Number(data.balances[c]) - Number(data.pending[c]))) : "—"}
+            </Text>
+            <Text size="xs" c="dimmed">available</Text>
             {data && Number(data.pending[c]) > 0 && (
-              <Text size="xs" c="orange">{Number(data.pending[c])} pending</Text>
+              <Text size="xs" c="orange">{Number(data.pending[c])} pending ({Number(data.balances[c])} total)</Text>
             )}
           </Card>
         ))}

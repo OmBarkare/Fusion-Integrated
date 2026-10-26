@@ -8,12 +8,11 @@ import { ErrorState } from "../../../ui/components/ErrorState";
 import { FormModal } from "../../../ui/components/FormModal";
 import { PageHeader } from "../../../ui/components/PageHeader";
 import {
-  useCancel, useExtend, useModify, useMyRequests, usePrint, useRenominate, useRequest,
+  useCancel, useExtend, useMyRequests, usePrint, useRenominate, useRequest,
   useResume, useWithdraw,
 } from "../api/hooks";
-import type { LeaveInput, LeaveRequest } from "../api/types";
+import type { LeaveRequest } from "../api/types";
 import { EmployeePicker } from "../components/EmployeePicker";
-import { LeaveForm, missingReason } from "../components/LeaveForm";
 import { LeaveTable } from "../components/LeaveTable";
 import { NoteModal } from "../components/NoteModal";
 
@@ -24,19 +23,10 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 type Dialog =
   | { kind: "withdraw" | "cancel"; row: LeaveRequest }
-  | { kind: "modify"; row: LeaveRequest; value: LeaveInput }
   | { kind: "renominate"; row: LeaveRequest; sub: number | null }
   | { kind: "extend"; row: LeaveRequest; end: string; purpose: string }
   | { kind: "resume"; row: LeaveRequest; date: string }
   | null;
-
-function toInput(r: LeaveRequest): LeaveInput {
-  return { category: r.category, start_date: r.start_date, end_date: r.end_date,
-    half: r.half, purpose: r.purpose, medical_evidence: r.medical_evidence,
-    station_leave: r.station_leave, station_from: r.station_from, station_to: r.station_to,
-    station_address: r.station_address, substitute_user_id: r.substitute_user_id,
-    responsibility: r.responsibility };
-}
 
 export default function MyLeavePage() {
   const { data, isPending, error } = useMyRequests();
@@ -45,7 +35,6 @@ export default function MyLeavePage() {
   const history = useRequest(detail);
   const withdraw = useWithdraw();
   const cancel = useCancel();
-  const modify = useModify();
   const renominate = useRenominate();
   const extend = useExtend();
   const resume = useResume();
@@ -66,10 +55,6 @@ export default function MyLeavePage() {
       <Button key="p" size="xs" variant="subtle" onClick={() => print.mutate(r.id)}>Print</Button>,
     ];
     if (PENDING.has(r.status)) {
-      if (r.kind === "leave") {
-        out.push(<Button key="m" size="xs" variant="light"
-          onClick={() => setDialog({ kind: "modify", row: r, value: toInput(r) })}>Modify</Button>);
-      }
       out.push(<Button key="w" size="xs" variant="light" color="red"
         onClick={() => setDialog({ kind: "withdraw", row: r })}>Withdraw</Button>);
     }
@@ -119,17 +104,6 @@ export default function MyLeavePage() {
           done("Cancellation requested"))}
       />
 
-      {dialog?.kind === "modify" && (
-        <FormModal opened title="Modify request" onClose={() => setDialog(null)}
-          subtitle="Approvals restart once you save."
-          submitting={modify.isPending} disabled={!!missingReason(dialog.value)}
-          disabledReason={missingReason(dialog.value)}
-          onSubmit={() => modify.mutate({ id: dialog.row.id, data: dialog.value },
-            done("Request modified"))}>
-          <LeaveForm value={dialog.value}
-            onChange={(value) => setDialog({ ...dialog, value })} />
-        </FormModal>
-      )}
       {dialog?.kind === "renominate" && (
         <FormModal opened title="Nominate a new substitute" onClose={() => setDialog(null)}
           submitting={renominate.isPending} disabled={dialog.sub == null}

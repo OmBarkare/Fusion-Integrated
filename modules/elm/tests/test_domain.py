@@ -11,14 +11,21 @@ import pytest
 
 from modules.elm.domain import (
     categories as c,
+)
+from modules.elm.domain import (
     counting,
     overlap,
     policy,
+)
+from modules.elm.domain import (
     routing as r,
+)
+from modules.elm.domain import (
     state_machine as sm,
+)
+from modules.elm.domain import (
     year_end as ye,
 )
-
 
 # ============================================================================
 # BR-EL-001, 002: Categories & Policy Parameters
@@ -253,3 +260,42 @@ def test_vl_to_el_year_end_conversion():
     assert ye.vl_to_el(Decimal("60"), Decimal("2")) == Decimal("30.00")
     assert ye.vl_to_el(Decimal("15"), Decimal("2")) == Decimal("7.50")
     assert ye.vl_to_el(Decimal("0"), Decimal("2")) == Decimal("0")
+
+
+# ============================================================================
+# BR-EL-016..019: Decision Events by Step & Authority
+# ============================================================================
+
+def test_decision_events_unit_head_and_sanctioning():
+    """BR-EL-016, 017: Unit Head is final only for CL/RH; recommends for higher-sanction."""
+    # CL/RH: Unit Head approves or rejects
+    events_uh_cl = sm.decision_events(r.UNIT_HEAD, unit_head_final=True, cancelling=False)
+    assert set(events_uh_cl) == {sm.APPROVE, sm.REJECT}
+
+    # EL/COL/VL/SCL: Unit Head can ONLY recommend or not recommend; CANNOT approve
+    events_uh_el = sm.decision_events(r.UNIT_HEAD, unit_head_final=False, cancelling=False)
+    assert set(events_uh_el) == {sm.RECOMMEND, sm.NOT_RECOMMEND}
+    assert sm.APPROVE not in events_uh_el
+
+    # Establishment step: can only forward
+    events_est = sm.decision_events(r.ESTABLISHMENT, unit_head_final=False, cancelling=False)
+    assert set(events_est) == {sm.FORWARD}
+
+    # Final Sanctioner: approves or rejects
+    events_sanction = sm.decision_events(r.SANCTION, unit_head_final=False, cancelling=False)
+    assert set(events_sanction) == {sm.APPROVE, sm.REJECT}
+
+
+def test_decision_events_cancellation_routing():
+    """BR-EL-023: Cancellation routes through hierarchy; advances until sanctioning authority."""
+    # Non-final Unit Head on cancellation advances
+    events_uh_can = sm.decision_events(r.UNIT_HEAD, unit_head_final=False, cancelling=True)
+    assert set(events_uh_can) == {sm.CANCEL_ADVANCE}
+
+    # Establishment on cancellation advances
+    events_est_can = sm.decision_events(r.ESTABLISHMENT, unit_head_final=False, cancelling=True)
+    assert set(events_est_can) == {sm.CANCEL_ADVANCE}
+
+    # Sanctioning authority approves or rejects cancellation
+    events_sanc_can = sm.decision_events(r.SANCTION, unit_head_final=False, cancelling=True)
+    assert set(events_sanc_can) == {sm.CANCEL_APPROVE, sm.CANCEL_REJECT}

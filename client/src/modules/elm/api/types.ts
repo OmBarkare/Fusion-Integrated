@@ -103,6 +103,7 @@ export interface Balance {
   display_name?: string;
   balances: Record<Category, string>;
   pending: Record<Category, string>;
+  available?: Record<Category, string>;
   history: LedgerEntry[];
 }
 

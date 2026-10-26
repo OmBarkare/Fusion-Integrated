@@ -84,6 +84,48 @@ class LeaveInputSerializer(serializers.Serializer):
     responsibility = serializers.CharField(max_length=300, required=False, default="",
                                            allow_blank=True)
 
+    def validate(self, attrs):
+        start = attrs.get("start_date")
+        end = attrs.get("end_date")
+        if start and end and end < start:
+            raise serializers.ValidationError({"end_date": "Leave cannot end before it starts."})
+        half = attrs.get("half")
+        cat = attrs.get("category")
+        if half:
+            if cat != c.CL:
+                raise serializers.ValidationError(
+                    {"half": "Only Casual Leave (CL) can be taken as a half day."}
+                )
+            if start and end and start != end:
+                raise serializers.ValidationError(
+                    {"half": "A half-day leave must start and end on the same date."}
+                )
+        if cat == c.COL and not (attrs.get("medical_evidence") or "").strip():
+            raise serializers.ValidationError(
+                {"medical_evidence": "Commuted Leave (COL) requires supporting medical evidence."}
+            )
+        if attrs.get("station_leave"):
+            s_from = attrs.get("station_from")
+            s_to = attrs.get("station_to")
+            s_addr = (attrs.get("station_address") or "").strip()
+            if not s_from:
+                raise serializers.ValidationError(
+                    {"station_from": "Station Leave requires an away-from date."}
+                )
+            if not s_to:
+                raise serializers.ValidationError(
+                    {"station_to": "Station Leave requires an away-until date."}
+                )
+            if s_from and s_to and s_to < s_from:
+                raise serializers.ValidationError(
+                    {"station_to": "Station leave return date cannot be before departure date."}
+                )
+            if not s_addr:
+                raise serializers.ValidationError(
+                    {"station_address": "Station Leave requires an address while away."}
+                )
+        return attrs
+
 
 class ExtensionSerializer(serializers.Serializer):
     end_date = serializers.DateField()
@@ -152,6 +194,8 @@ class BalanceSerializer(serializers.Serializer):
         max_digits=7, decimal_places=2))
     pending = serializers.DictField(child=serializers.DecimalField(
         max_digits=7, decimal_places=2))
+    available = serializers.DictField(child=serializers.DecimalField(
+        max_digits=7, decimal_places=2), required=False)
     history = LedgerEntrySerializer(many=True)
 
 
@@ -212,3 +256,13 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = ["id", "message", "request_id", "created_at", "read_at"]
+
+
+class EmployeeSearchResultSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField()
+    display_name = serializers.CharField()
+    username = serializers.CharField()
+
+
+class EmployeeSearchResponseSerializer(serializers.Serializer):
+    results = EmployeeSearchResultSerializer(many=True)

@@ -84,7 +84,7 @@ ROLE_GRANTS = {
     "Deputy Registrar": [p.P_REVIEW, p.P_RESUMPTION],
     "Registrar": _REVIEW_AND_APPROVE,
     "Director": _REVIEW_AND_APPROVE,
-    **{uh: _REVIEW_AND_APPROVE for uh in _UNIT_HEADS},
+    **dict.fromkeys(_UNIT_HEADS, _REVIEW_AND_APPROVE),
     "Leave Administrator": [
         p.P_POLICY,
         p.P_CALENDAR,
